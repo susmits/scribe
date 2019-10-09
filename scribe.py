@@ -6,6 +6,24 @@ scribe.py -- Simple Python APIs for programmatically creating drawings.
 """
 
 ##############################################################################
+## Helper functions.
+##
+
+def to_rgba(color):
+    """
+    Converts `color` to a 4-tuple containing red, green, blue, and alpha
+    values.
+
+    """
+    rgba = tuple(color)
+    is_valid_color_component = lambda x: type(x) is int and 0 <= x <= 255
+    if len(rgba) == 4 and all(map(is_valid_color_component, color)):
+        return rgba
+    else:
+        raise ValueError(f"{color} is not a valid RGBA 4-tuple.")
+
+
+##############################################################################
 ## Paint.
 ##
 
@@ -19,14 +37,17 @@ class Paint(object):
         Initializes a blank Paint instance.
 
         """
-        pass
+        self._foreground_color = (0, 0, 0, 0)
+        self._background_color = (0, 0, 0, 0)
+        self._stroke_width = 0.0
 
     def __repr__(self):
         """
         Friendly string representation.
 
         """
-        pass
+        return f"<paint fg {self._foreground_color} bg {self._background_color} " \
+            f"stroke {self._stroke_width}>"
 
     @property
     def foreground_color(self):
@@ -35,7 +56,7 @@ class Paint(object):
         blue, and alpha values.
 
         """
-        pass
+        return self._foreground_color
 
     @foreground_color.setter
     def foreground_color(self, color):
@@ -44,7 +65,7 @@ class Paint(object):
         the red, green, blue, and alpha values.
 
         """
-        pass
+        self._foreground_color = to_rgba(color)
 
     @property
     def background_color(self):
@@ -53,7 +74,7 @@ class Paint(object):
         blue, and alpha values.
 
         """
-        pass
+        return self._background_color
 
     @background_color.setter
     def background_color(self, color):
@@ -62,7 +83,7 @@ class Paint(object):
         the red, green, blue, and alpha values.
 
         """
-        pass
+        self._background_color = to_rgba(color)
 
     @property
     def stroke_width(self):
@@ -70,7 +91,7 @@ class Paint(object):
         Returns the stroke width.
 
         """
-        pass
+        return self._stroke_width
 
     @stroke_width.setter
     def stroke_width(self, width):
@@ -78,7 +99,7 @@ class Paint(object):
         Sets the stroke width to `width`.
 
         """
-        pass
+        self._stroke_width = float(width)
 
 
 ##############################################################################
