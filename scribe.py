@@ -5,11 +5,14 @@ scribe.py -- Simple Python APIs for programmatically creating drawings.
 
 """
 
+import collections
+import xml.etree.ElementTree as ET
+
 ##############################################################################
 ## Helper functions.
 ##
 
-def to_rgba(color):
+def to_color_tuple(color):
     """
     Converts `color` to a 4-tuple containing red, green, blue, and alpha
     values.
@@ -21,6 +24,40 @@ def to_rgba(color):
         return rgba
     else:
         raise ValueError(f"{color} is not a valid RGBA 4-tuple.")
+
+
+def stringize_values(dict):
+    """
+    Returns the dict, made of the same keys but stringized values.
+
+    """
+    stringized_dict = {}
+    for k, v in dict.items():
+        stringized_dict[k] = str(v)
+    return stringized_dict
+
+
+def to_svg_color(color_tuple):
+    """
+    Converts a 4-tuple containing red, green, blue, and alpha values to an
+    SVG #RGBA color code.
+
+    """
+    return "#%02x%02x%02x%02x" % color_tuple
+
+
+def add_paint(shape_tag, paint):
+    """
+    Add the specified paint to the given SVG shape tag.
+
+    """
+    paint_attrib = stringize_values({
+        "stroke"      : to_svg_color(paint.foreground_color),
+        "fill"        : to_svg_color(paint.background_color),
+        "stroke-width": paint.stroke_width,
+    })
+    shape_tag.attrib.update(paint_attrib)
+    return shape_tag
 
 
 ##############################################################################
@@ -65,7 +102,7 @@ class Paint(object):
         the red, green, blue, and alpha values.
 
         """
-        self._foreground_color = to_rgba(color)
+        self._foreground_color = to_color_tuple(color)
 
     @property
     def background_color(self):
@@ -83,7 +120,7 @@ class Paint(object):
         the red, green, blue, and alpha values.
 
         """
-        self._background_color = to_rgba(color)
+        self._background_color = to_color_tuple(color)
 
     @property
     def stroke_width(self):
@@ -116,7 +153,27 @@ class Canvas(object):
         Initializes a canvas with the specified width and height.
 
         """
-        pass
+        self._width = width
+        self._height = height
+        self._paint = Paint()
+        self._shape_list = collections.OrderedDict()
+        self._next_shape_id = 1
+
+    @property
+    def width(self):
+        """
+        Returns the width of the canvas.
+
+        """
+        return self._width
+    
+    @property
+    def height(self):
+        """
+        Returns the height of the canvas.
+
+        """
+        return self._height
 
     @property
     def paint(self):
@@ -124,7 +181,7 @@ class Canvas(object):
         Returns the paint currently associated with this canvas.
 
         """
-        pass
+        return self._paint
 
     @paint.setter
     def paint(self, p):
@@ -132,7 +189,53 @@ class Canvas(object):
         Sets the paint for the canvas to `p`.
 
         """
-        pass
+        self._paint = p
+
+    def convert_to_svg(self):
+        """
+        Returns the contents of this canvas as an SVG ElementTree.
+
+        """
+        svg_root = ET.Element("svg",
+            {
+                "viewbox": f"0 0 {self.width} {self.height}",
+                "xmlns": "http://www.w3.org/2000/svg",
+            })
+
+        for shape in self._shape_list.values():
+            # Unpack.
+            shape_type, *args = shape
+            shape_tag = None
+            
+            if shape_type == "line":
+                attribs = stringize_values({
+                    "x1": args[0],
+                    "y1": args[1],
+                    "x2": args[2],
+                    "y2": args[3],
+                })
+                shape_tag = ET.Element("line", attribs)
+            elif shape_type == "circle":
+                attribs = stringize_values({
+                    "cx": args[0],
+                    "cy": args[1],
+                    "r" : args[2],
+                })
+                shape_tag = ET.Element("circle", attribs)
+            elif shape_type == "rect":
+                attribs = stringize_values({
+                    "x"     : args[0],
+                    "y"     : args[1],
+                    "width" : args[2] - args[0],
+                    "height": args[3] - args[1],
+                })
+                shape_tag = ET.Element("rect", attribs)
+
+            add_paint(shape_tag, args[-1])
+            svg_root.append(shape_tag)
+
+        svg = ET.ElementTree(svg_root)
+        return svg
 
     def draw_line(self, start_x, start_y, end_x, end_y, paint=None):
         """
@@ -141,7 +244,11 @@ class Canvas(object):
         used.
 
         """
-        pass
+        if paint is None:
+            paint = self._paint
+    
+        shape = ("line", start_x, start_y, end_x, end_y, paint)
+        return self._add_shape_to_store(shape)
 
     def draw_circle(self, center_x, center_y, radius, paint=None):
         """
@@ -150,7 +257,11 @@ class Canvas(object):
         canvas is used.
 
         """
-        pass
+        if paint is None:
+            paint = self._paint
+    
+        shape = ("circle", center_x, center_y, radius, paint)
+        return self._add_shape_to_store(shape)
 
     def draw_rectangle(self, left, top, right, bottom, paint=None):
         """
@@ -158,20 +269,23 @@ class Canvas(object):
         paint isn't specified, the paint associated with the canvas is used.
 
         """
-        pass
+        if paint is None:
+            paint = self._paint
+    
+        shape = ("rect", left, top, right, bottom, paint)
+        return self._add_shape_to_store(shape)
 
+    def _add_shape_to_store(self, shape):
+        """
+        Internal function that adds the specified shape to the shape list
+        and returns its key.
 
-##############################################################################
-## Save to a file.
-##
+        """
+        shape_id = self._next_shape_id
+        self._next_shape_id += 1
 
-def write_svg(file_like_obj, canvas):
-    """
-    Writes the shapes drawn on `canvas` into `file_like_obj`, which is a file
-    or file like object.
-
-    """
-    pass
+        self._shape_list[shape_id] = shape
+        return shape_id 
 
 
 ##############################################################################
